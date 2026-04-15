@@ -65,7 +65,7 @@ useEffect(() => {
         ref={scrollRef}
         className="flex-1 w-full max-w-3xl overflow-y-auto px-6 py-16 space-y-10"
       >
-        <div className="w-full h-[1px] bg-gray-50 mb-4" /> {/* Visual separator from image */}
+        <div className="w-full h-px bg-gray-50 mb-4" /> {/* Visual separator from image */}
         
         {messages.map((msg) => (
           <div 
@@ -87,7 +87,7 @@ useEffect(() => {
 
       {/* Input Field - Exact replica of the black border box */}
       <footer className="w-full max-w-3xl p-6 mb-10 bg-white">
-        <div className="w-full h-[1px] bg-gray-50 mb-12" /> {/* Bottom separator from image */}
+        <div className="w-full h-px bg-gray-50 mb-12" /> {/* Bottom separator from image */}
         <form 
           onSubmit={handleSendMessage}
           className="relative flex items-center"
