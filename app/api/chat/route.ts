@@ -1,64 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   try {
     const { message } = await req.json();
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "Arabic Document Writer",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-4o-mini", // تقدر تغيره لاحقًا
-        messages: [
-          {
-            role: "system",
-            content:`
-أنت كاتب محتوى عربي محترف لمحرر مستندات (Google Docs style).
-
-مهمتك:
-اكتب المقال باللغة العربية فقط.
-
-⚠️ مهم جدًا:
-- لا تستخدم Markdown (# أو ## أو ###)
-- لا تستخدم رموز تنسيق
-- اكتب باستخدام HTML فقط
-
-التنسيق المطلوب:
-- استخدم <h1> للعنوان الرئيسي
-- استخدم <h2> للعناوين الفرعية
-- استخدم <p> للفقرات
-- استخدم <ul><li> للقوائم
-
-الأسلوب:
-- احترافي ومنظم
-- مناسب لمستند تعليمي أو رسمي
-`,
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-
-    const reply =
-      data?.choices?.[0]?.message?.content ||
-      "لم يتم الحصول على رد من الذكاء الاصطناعي";
-
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply: "تم الاستلام: " + message });
   } catch (error) {
-    console.error(error);
-
     return NextResponse.json(
-      { reply: "حدث خطأ في السيرفر" },
+      { error: "Something went wrong" },
       { status: 500 }
     );
   }
