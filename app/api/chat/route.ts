@@ -1,48 +1,64 @@
-export async function POST(req: Request) {
+import { NextResponse } from "next/server";
+
+export async function POST(req) {
   try {
     const { message } = await req.json();
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "Arabic Document Writer",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini", // تقدر تغيره لاحقًا
+        messages: [
+          {
+            role: "system",
+            content:`
+أنت كاتب محتوى عربي محترف لمحرر مستندات (Google Docs style).
 
-          // مهم جدًا لـ OpenRouter (مو اختياري)
-          "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "My Next.js Chatbot",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o-mini", 
-          messages: [
-            {
-              role: "system",
-              content: "You are a helpful AI assistant.",
-            },
-            {
-              role: "user",
-              content: message,
-            },
-          ],
-        }),
-      }
-    );
+مهمتك:
+اكتب المقال باللغة العربية فقط.
+
+⚠️ مهم جدًا:
+- لا تستخدم Markdown (# أو ## أو ###)
+- لا تستخدم رموز تنسيق
+- اكتب باستخدام HTML فقط
+
+التنسيق المطلوب:
+- استخدم <h1> للعنوان الرئيسي
+- استخدم <h2> للعناوين الفرعية
+- استخدم <p> للفقرات
+- استخدم <ul><li> للقوائم
+
+الأسلوب:
+- احترافي ومنظم
+- مناسب لمستند تعليمي أو رسمي
+`,
+          },
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+      }),
+    });
 
     const data = await response.json();
 
-    // استخراج الرد
-    const reply = data?.choices?.[0]?.message?.content;
+    const reply =
+      data?.choices?.[0]?.message?.content ||
+      "لم يتم الحصول على رد من الذكاء الاصطناعي";
 
-    return Response.json({
-      reply: reply || "No response from AI",
-    });
-
+    return NextResponse.json({ reply });
   } catch (error) {
     console.error(error);
-    return Response.json(
-      { reply: "Server error" },
+
+    return NextResponse.json(
+      { reply: "حدث خطأ في السيرفر" },
       { status: 500 }
     );
   }
