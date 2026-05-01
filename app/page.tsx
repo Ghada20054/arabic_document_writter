@@ -5,8 +5,7 @@ import React, { useState, useRef } from 'react';
 export default function GeminiCanvasUI() {
   const [inputText, setInputText] = useState("");
   const [docTitle, setDocTitle] = useState("Basic Arabic Phrases");
-  const editorRef = useRef(null);
-
+const editorRef = useRef<HTMLDivElement | null>(null);
   // Helper to apply formatting to the document
   const applyFormat = (command, value = null) => {
   editorRef.current?.focus();
