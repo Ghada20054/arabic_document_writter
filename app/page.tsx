@@ -7,7 +7,7 @@ export default function GeminiCanvasUI() {
   const [docTitle, setDocTitle] = useState("Basic Arabic Phrases");
 const editorRef = useRef<HTMLDivElement | null>(null);
   // Helper to apply formatting to the document
-  const applyFormat = (command, value = null) => {
+ const applyFormat = (command: string, value: string | null = null) => {
   editorRef.current?.focus();
 
   // 👇 Heading 1
@@ -31,8 +31,7 @@ const editorRef = useRef<HTMLDivElement | null>(null);
     return;
   }
 
-  document.execCommand(command, false, value);
-};
+document.execCommand(command, false, value ?? undefined);};
 
   // Function for the "Create" button - Starts a fresh document
   const handleCreateNew = () => {
@@ -56,7 +55,7 @@ const editorRef = useRef<HTMLDivElement | null>(null);
     a.click();
     URL.revokeObjectURL(url);
   };
-  const sendToAI = async (message) => {
+  const sendToAI = async (message: string) =>  {
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -75,7 +74,7 @@ const editorRef = useRef<HTMLDivElement | null>(null);
   }
 };
 
-  const handleKeyDown = async (e) => {
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
 
@@ -246,9 +245,14 @@ style={{ direction: "rtl", textAlign: "right" }}              contentEditable="t
               suppressContentEditableWarning={true}
               onBlur={(e) => {
                 const firstTag = e.currentTarget.firstChild;
-                if (firstTag && (firstTag.nodeName === 'H1' || firstTag.nodeName === 'H2')) {
-                  setDocTitle(firstTag.innerText);
-                }
+
+if (
+  firstTag &&
+  firstTag instanceof HTMLElement &&
+  (firstTag.nodeName === "H1" || firstTag.nodeName === "H2")
+) {
+  setDocTitle(firstTag.innerText);
+}
               }}
             >
               
