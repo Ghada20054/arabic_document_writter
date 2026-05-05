@@ -36,10 +36,7 @@ document.execCommand(command, false, value ?? undefined);};
   // Function for the "Create" button - Starts a fresh document
   const handleCreateNew = () => {
     if (window.confirm("Start a new document? Current changes will be cleared.")) {
-      if (editorRef.current) {
-        editorRef.current.innerHTML = "<h1>Untitled Document</h1><p>Start writing...</p>";
-        setDocTitle("Untitled Document");
-      }
+     
     }
   };
 
@@ -55,7 +52,7 @@ document.execCommand(command, false, value ?? undefined);};
     a.click();
     URL.revokeObjectURL(url);
   };
-  const sendToAI = async (message: string) =>  {
+  const sendToAI = async (message: string) => {
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
@@ -65,9 +62,33 @@ document.execCommand(command, false, value ?? undefined);};
       body: JSON.stringify({ message }),
     });
 
-    const data = await res.json();
+    if (!res.body) throw new Error("No stream");
 
-    return data.reply;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    let result = "";
+
+    // ✨ clear editor first
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      result += chunk;
+
+      // ✨ update document LIVE
+      if (editorRef.current) {
+        editorRef.current.innerHTML = result;
+      }
+    }
+
+    return result;
+
   } catch (error) {
     console.error("AI Error:", error);
     return "حدث خطأ في الاتصال بالذكاء الاصطناعي";
