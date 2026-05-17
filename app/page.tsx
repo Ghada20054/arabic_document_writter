@@ -1,11 +1,55 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 export default function GeminiCanvasUI() {
+  useEffect(() => {
+  const loadDocuments = async () => {
+    const res = await fetch("/api/documents");
+    const data = await res.json();
+
+    setDocuments(data);
+  };
+
+  loadDocuments();
+}, []);
   const [inputText, setInputText] = useState("");
-  const [docTitle, setDocTitle] = useState("Basic Arabic Phrases");
+  const [chatMessages, setChatMessages] = useState<string[]>([]);
+  const [docTitle, setDocTitle] = useState("");
+  const [isReasoning, setIsReasoning] = useState(false);
+const [reasoningContent, setReasoningContent] = useState("");
+const [reasoningTokens, setReasoningTokens] = useState<string[]>([]);
+const [reasoningIndex, setReasoningIndex] = useState(0);
 const editorRef = useRef<HTMLDivElement | null>(null);
+const [documents, setDocuments] = useState<any[]>([]);
+const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+const [showDocuments, setShowDocuments] = useState(false);
+const chunkIntoTokens = (text: string) => {
+  const chunks: string[] = [];
+  let i = 0;
+
+  while (i < text.length) {
+    const size = Math.floor(Math.random() * 2) + 3;
+    chunks.push(text.slice(i, i + size));
+    i += size;
+  }
+
+  return chunks;
+};
+const startReasoning = (text: string) => {
+  const tokens = chunkIntoTokens(text);
+
+  setReasoningTokens(tokens);
+  setReasoningContent("");
+  setReasoningIndex(0);
+  setIsReasoning(true);
+};
+
   // Helper to apply formatting to the document
  const applyFormat = (command: string, value: string | null = null) => {
   editorRef.current?.focus();
@@ -32,7 +76,12 @@ const editorRef = useRef<HTMLDivElement | null>(null);
   }
 
 document.execCommand(command, false, value ?? undefined);};
-
+const reasoningSteps = [
+  "Let me think about this problem step by step.",
+  "\n\nFirst, I need to understand what the user is asking for.",
+  "\n\nThey want a reasoning component that opens automatically when streaming begins and closes when streaming finishes. The component should be composable and follow existing patterns in the codebase.",
+  "\n\nThis seems like a collapsible component with state management would be the right approach.",
+].join("");
   // Function for the "Create" button - Starts a fresh document
   const handleCreateNew = () => {
     if (window.confirm("Start a new document? Current changes will be cleared.")) {
@@ -52,50 +101,55 @@ document.execCommand(command, false, value ?? undefined);};
     a.click();
     URL.revokeObjectURL(url);
   };
-  const sendToAI = async (message: string) => {
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message }),
-    });
+ 
 
-    if (!res.body) throw new Error("No stream");
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
+const saveCurrentDocument = async (
+  title: string,
+  messages: string[]
+) => {
+    
+  if (!editorRef.current) return;
 
-    let result = "";
-
-    // ✨ clear editor first
-    if (editorRef.current) {
-      editorRef.current.innerHTML = "";
-    }
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      result += chunk;
-
-      // ✨ update document LIVE
-      if (editorRef.current) {
-        editorRef.current.innerHTML = result;
-      }
-    }
-
-    return result;
-
-  } catch (error) {
-    console.error("AI Error:", error);
-    return "حدث خطأ في الاتصال بالذكاء الاصطناعي";
+ if (!title.trim()) {
+    console.log("Title is empty");
+    
+    return;
   }
+
+  const res = await fetch("/api/documents", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title,
+      content: editorRef.current.innerHTML || "",
+        messages: messages || [],
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.log("API ERROR:", data);
+    return;
+  }
+
+  setDocuments((prev) => [data, ...prev]); 
+};
+  
+const openDocument = (doc: any) => {
+  setDocTitle(doc.title);
+
+  if (editorRef.current) {
+    editorRef.current.innerHTML = doc.content;
+  }
+setChatMessages(doc.messages || []);
+  setActiveDocumentId(doc.id);
+  setShowDocuments(false);
+  
 };
 
-  const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+const handleKeyDown = async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
 
@@ -104,54 +158,175 @@ document.execCommand(command, false, value ?? undefined);};
 
     if (!prompt.trim()) return;
 
-    // 🧠 إرسال طلب عام لأي موضوع
-    const aiText = await sendToAI(
-      `
-أنت كاتب محتوى عربي محترف.
+    // 🔥 title AI
+    const resTitle = await fetch("/api/title", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+    });
 
-اكتب مقالًا داخل مستند حول الموضوع التالي:
-"${prompt}"
+    const data = await resTitle.json();
 
-الشروط:
-- اكتب باللغة العربية فقط 100%
-- لا تستخدم أي كلمات إنجليزية
-- اجعل النص مناسب لمستند رسمي أو تعليمي
-- قسمه إلى:
-  1) عنوان رئيسي
-  2) مقدمة
-  3) فقرات منظمة
-  4) خاتمة
-- استخدم تنسيق جميل وسهل القراءة
-      `
-    );
+const generatedTitle =
+  data.title || "Untitled Document";
 
-    // ✨ كتابة داخل المستند مباشرة
-    if (editorRef.current) {
-  editorRef.current.innerHTML = aiText;
-}
+setDocTitle(generatedTitle);
+
+    const updatedMessages = [...chatMessages, prompt];
+setChatMessages(updatedMessages);
+    // 🔥 AI chat function
+    const sendToAI = async (message: string) => {
+      setIsReasoning(true);
+      startReasoning(reasoningSteps); // أو أي نص من السيرفر لاحقاً
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: message }],
+        }),
+      });
+
+      if (!res.body) throw new Error("No stream");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      let result = "";
+
+      if (editorRef.current) {
+        editorRef.current.innerHTML = "";
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        result += decoder.decode(value, { stream: true });
+
+        if (editorRef.current) {
+          editorRef.current.innerHTML = result;
+        }
+      }
+      setIsReasoning(false);
+setReasoningContent("");
+
+      return result;
+    };
+
+   await sendToAI(prompt);
+
+saveCurrentDocument(
+  generatedTitle,
+  updatedMessages
+);
   }
 };
+useEffect(() => {
+  if (!isReasoning) return;
 
+  if (reasoningIndex >= reasoningTokens.length) {
+    setIsReasoning(false);
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    setReasoningContent((prev) => prev + reasoningTokens[reasoningIndex]);
+    setReasoningIndex((prev) => prev + 1);
+  }, 20);
+
+  return () => clearTimeout(timer);
+}, [isReasoning, reasoningIndex, reasoningTokens]);
   return (
     <div className="flex flex-col h-screen bg-white text-[#1f1f1f] font-sans overflow-hidden">
       
       {/* TOP GLOBAL NAVBAR */}
       <nav className="h-14 border-b border-zinc-200 flex items-center justify-between px-4 bg-white z-50">
-        <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-zinc-100 rounded-lg">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-          </button>
-          <span className="text-xl font-medium text-zinc-700">Gemini</span>
-        </div>
+       <div className="flex items-center gap-4">
+  <button className="p-2 hover:bg-zinc-100 rounded-lg">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M3 12h18M3 6h18M3 18h18"/>
+    </svg>
+  </button>
+
+  <span className="text-xl font-medium text-zinc-700">
+    Gemini
+  </span>
+
+  {/* زر إنشاء مستند جديد */}
+  <button
+  onClick={() => setShowDocuments(true)}
+  className="ml-4 px-4 py-1.5 rounded-full bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
+>
+  Documents
+</button>
+</div>
       </nav>
 
       {/* MAIN CONTENT AREA */}
       <main className="flex flex-1 overflow-hidden">
+        {showDocuments && (
+  <div className="absolute inset-0 bg-white z-50 overflow-y-auto p-8">
+    
+    <div className="flex items-center justify-between mb-8">
+      <h1 className="text-2xl font-bold">Documents</h1>
+
+      <button
+        onClick={() => setShowDocuments(false)}
+        className="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200"
+      >
+        Close
+      </button>
+    </div>
+
+    {documents.length === 0 ? (
+      <div className="text-zinc-500 text-sm">
+        No documents yet
+      </div>
+    ) : (
+      <div className="grid grid-cols-3 gap-4">
+        {documents.map((doc) => (
+          <div
+key={doc.id ?? doc.title}            onClick={() => openDocument(doc)}
+            className="p-5 rounded-2xl border border-zinc-200 hover:border-blue-400 cursor-pointer transition bg-white shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-zinc-100 rounded-lg">
+                📄
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-sm">
+                  {doc.title}
+                </h2>
+
+                <p className="text-xs text-zinc-500">
+                  {new Date(doc.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-zinc-600 line-clamp-3">
+ {doc.content?.slice(0, 100)}            </p>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+        
         
         {/* LEFT PANEL: CHAT */}
    {/* LEFT PANEL: CHAT */}
 <section className="w-[38%] flex flex-col border-r border-zinc-200 relative bg-white">
   <div className="flex-1 overflow-y-auto p-6 space-y-8">
+  {isReasoning && (
+  <div className="mb-4">
+    <Reasoning isStreaming={isReasoning}>
+  <ReasoningTrigger />
+  <ReasoningContent>{reasoningContent}</ReasoningContent>
+</Reasoning>
+  </div>
+)}
     {/* تم حذف الرسالة السابقة وزر Try again وتم الإبقاء فقط على استجابة الذكاء الاصطناعي الأساسية */}
     <div className="flex gap-4">
       <div className="mt-1 text-blue-600">
@@ -163,6 +338,17 @@ document.execCommand(command, false, value ?? undefined);};
         <p className="text-[15px] leading-relaxed">
           أهلاً بك! سأقوم بكتابة نص احترافي باللغة العربية حول الموضوع الذي تطلبه، وسأنسق الملف داخل المحرر مباشرة ليسهل عليك تعديله أو تحميله.
         </p>
+        {/* رسائل المستخدم */}
+<div className="space-y-3">
+  {chatMessages.map((msg, index) => (
+    <div
+      key={index}
+      className="bg-blue-50 text-zinc-700 p-3 rounded-2xl max-w-[80%] ml-auto text-sm"
+    >
+      {msg}
+    </div>
+  ))}
+</div>
         
         {/* ملف المحتوى الصغير */}
         <div className="bg-[#f0f4f8] rounded-2xl p-4 flex items-center justify-between border border-zinc-100 max-w-[320px]">
@@ -297,4 +483,4 @@ if (
       </main>
     </div>
   );
-}
+}    
