@@ -37,3 +37,7 @@ next-env.d.ts
 .vercel
 
 /lib/generated/prisma
+
+# cloudflare / open-next
+.open-next
+.wrangler
