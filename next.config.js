@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
-eslint:{ignoreDuringBuilds:true}
-module.exports = {
+const nextConfig = {
+  serverExternalPackages: [
+    '@prisma/client',
+    '.prisma/client',
+  ],
+
   allowedDevOrigins: ['192.168.238.1'],
-}
+};
+
+module.exports = nextConfig;

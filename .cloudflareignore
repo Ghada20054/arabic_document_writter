@@ -1,0 +1,6 @@
+.next/
+.open-next/
+node_modules/
+.git/
+.env*.local
+README.md

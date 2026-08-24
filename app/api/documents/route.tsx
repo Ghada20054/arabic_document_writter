@@ -1,7 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import { createPrismaClient } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
+    const prisma = createPrismaClient();
+
     const body = await req.json();
 
     if (!body.title || !body.content) {
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
     return Response.json(doc);
   } catch (error) {
     console.error("CREATE DOC ERROR:", error);
+
     return Response.json(
       { error: "Internal Server Error" },
       { status: 500 }
@@ -31,9 +34,22 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const docs = await prisma.document.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    const prisma = createPrismaClient();
 
-  return Response.json(docs);
+    const docs = await prisma.document.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return Response.json(docs);
+  } catch (error) {
+    console.error("GET DOCS ERROR:", error);
+
+    return Response.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
 }

@@ -12,13 +12,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
+
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
+import type { ComponentProps, HTMLAttributes, ReactElement, ReactNode } from "react";
 import {
   createContext,
   memo,
@@ -28,7 +25,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -206,7 +202,6 @@ export const MessageBranchContent = ({
     [children]
   );
 
-  // Use useEffect to update branches when they change
   useEffect(() => {
     if (branches.length !== childrenArray.length) {
       setBranches(childrenArray);
@@ -224,7 +219,7 @@ export const MessageBranchContent = ({
     >
       {branch}
     </div>
-  ));
+    ));
 };
 
 export type MessageBranchSelectorProps = ComponentProps<typeof ButtonGroup>;
@@ -235,7 +230,6 @@ export const MessageBranchSelector = ({
 }: MessageBranchSelectorProps) => {
   const { totalBranches } = useMessageBranch();
 
-  // Don't render if there's only one branch
   if (totalBranches <= 1) {
     return null;
   }
@@ -319,20 +313,22 @@ export const MessageBranchPage = ({
   );
 };
 
-export type MessageResponseProps = ComponentProps<typeof Streamdown>;
-
-const streamdownPlugins = { cjk, code, math, mermaid };
+export type MessageResponseProps = ComponentProps<"div"> & {
+  children?: ReactNode;
+  isAnimating?: boolean;
+};
 
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown
+  ({ className, children, ...props }: MessageResponseProps) => (
+    <div
       className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+        "size-full font-sans text-sm leading-relaxed whitespace-pre-wrap dir-auto",
         className
       )}
-      plugins={streamdownPlugins}
       {...props}
-    />
+    >
+      {children}
+    </div>
   ),
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
